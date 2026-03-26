@@ -1,34 +1,25 @@
-const Anthropic = require('@anthropic-ai/sdk');
-
-// Create Claude AI client using our API key from .env
-const client = new Anthropic({ 
-  apiKey: process.env.ANTHROPIC_API_KEY 
-});
+const axios = require('axios');
 
 exports.generateComments = async (req, res) => {
   try {
-    const { 
-      postContext,      // description of the post
-      tone,             // friendly, witty, professional etc
-      platform,         // instagram or facebook
-      count = 3         // how many comments to generate
-    } = req.body;
+    const { postContext, tone, platform, count = 3 } = req.body;
 
-    // Send request to Claude AI
-    const message = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `You are a social media engagement expert.
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          {
+            role: 'user',
+            content: `You are a social media engagement expert.
 Generate exactly ${count} ${platform} comments for this post:
 "${postContext}"
 
 Tone: ${tone}
 
 Rules:
-- Sound 100% human, never robotic or salesy
-- Each comment should be different in style and length
+- Sound 100% human, never robotic
+- Each comment different in style and length
 - Include 1-2 relevant emojis per comment
 - Never use hashtags
 - Keep each comment under 150 characters
@@ -36,20 +27,37 @@ Rules:
 
 Respond ONLY as a JSON array of strings.
 No explanation, no markdown, no extra text.
-Example format: ["comment one","comment two","comment three"]`
-      }]
-    });
+Example: ["comment one","comment two","comment three"]`
+          }
+        ],
+        temperature: 0.8
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    // Parse the AI response
-    const raw = message.content[0].text.trim();
-    const comments = JSON.parse(raw);
+    // Extract response text
+    const raw = response.data.choices[0].message.content.trim();
+    
+    // Clean any markdown formatting
+    const clean = raw.replace(/```json|```/g, '').trim();
+    
+    // Parse into array
+    const comments = JSON.parse(clean);
 
     res.json({ 
-      success: true,
+      success: true, 
       comments 
     });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Groq Error:', err.response?.data || err.message);
+    res.status(500).json({ 
+      message: err.response?.data?.error?.message || err.message 
+    });
   }
 };
