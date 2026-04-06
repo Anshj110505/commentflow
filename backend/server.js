@@ -16,7 +16,10 @@ connectDB();
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────
@@ -24,6 +27,8 @@ app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/accounts', require('./routes/accounts'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/ai',       require('./routes/ai'));
+app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 
 // ── Test Route ────────────────────────────────────────────
 app.get('/api', (req, res) => {
