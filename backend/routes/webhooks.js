@@ -7,8 +7,10 @@ const {
 
 // Meta webhook verification (GET)
 router.get('/meta', verifyWebhook);
+router.get('/instagram', verifyWebhook);
 
 // Meta webhook events (POST)
 router.post('/meta', handleWebhook);
+router.post('/instagram', handleWebhook);
 
 module.exports = router;
