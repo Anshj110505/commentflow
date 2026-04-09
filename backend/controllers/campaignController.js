@@ -1,6 +1,20 @@
 const Campaign = require('../models/Campaign');
 const AutoReplyLog = require('../models/AutoReplyLog');
 
+// Extract post ID from Instagram/Facebook URL
+function extractPostId(input) {
+  if (!input) return input;
+  // If it's already just an ID (numbers only), return as is
+  if (/^\d+$/.test(input.trim())) return input.trim();
+  // Extract from Instagram URL: /p/ABC123/ or /reel/ABC123/
+  const igMatch = input.match(/\/(p|reel|tv)\/([^/?]+)/);
+  if (igMatch) return igMatch[2];
+  // Extract from Facebook URL
+  const fbMatch = input.match(/\/(\d+)\/?$/);
+  if (fbMatch) return fbMatch[1];
+  return input.trim();
+}
+
 // ── GET ALL CAMPAIGNS ─────────────────────────────────
 exports.getCampaigns = async (req, res) => {
   try {
@@ -23,20 +37,27 @@ exports.createCampaign = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !platform || !postId || !publicReply) {
+    if (!name || !platform || (!postId && !postUrl) || !publicReply) {
       return res.status(400).json({
-        message: 'Name, platform, postId and publicReply are required'
+        message: 'Name, platform, post URL/ID and publicReply are required'
       });
     }
 
+    // Extract post ID from URL or use directly if already an ID
+    const resolvedPostId = extractPostId(postId || postUrl);
+
     const campaign = await Campaign.create({
       userId: req.user.id,
-      name, platform, postUrl, postId,
+      name,
+      platform,
+      postUrl: postUrl || postId,
+      postId: resolvedPostId,
       triggerType: triggerType || 'keywords',
       keywords: keywords || [],
       publicReply,
       dmGreeting: dmGreeting || 'Hey {name}! 👋 Thanks for your interest!',
-      productName, productLink,
+      productName,
+      productLink,
       includeDescription: includeDescription || false,
       productDescription
     });
@@ -50,6 +71,11 @@ exports.createCampaign = async (req, res) => {
 // ── UPDATE CAMPAIGN ───────────────────────────────────
 exports.updateCampaign = async (req, res) => {
   try {
+    // If postUrl or postId is being updated, extract the ID
+    if (req.body.postUrl || req.body.postId) {
+      req.body.postId = extractPostId(req.body.postId || req.body.postUrl);
+    }
+
     const campaign = await Campaign.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.id },
       req.body,
