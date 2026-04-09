@@ -12,6 +12,9 @@ import Accounts from './pages/Accounts';
 import Campaigns from './pages/Campaigns';
 import Logs from './pages/Logs';
 import Layout from './components/Layout';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+
 
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
@@ -57,6 +60,8 @@ function App() {
             <Route path="queue" element={<Queue />} />
             <Route path="logs" element={<Logs />} />
             <Route path="accounts" element={<Accounts />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
