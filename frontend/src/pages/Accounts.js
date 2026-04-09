@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { accountsAPI } from '../utils/api';
-import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 function Accounts() {
