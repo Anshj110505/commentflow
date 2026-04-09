@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { accountsAPI } from '../utils/api';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 function Accounts() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    platform: 'instagram',
-    accountName: '',
-    accessToken: '',
-    pageId: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => {
+    fetchAccounts();
+    // Check if returning from OAuth
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      toast.success('Account connected successfully! ✅');
+      window.history.replaceState({}, '', '/accounts');
+    }
+    if (params.get('error')) {
+      toast.error('Failed to connect account. Please try again.');
+      window.history.replaceState({}, '', '/accounts');
+    }
+  }, []);
 
   const fetchAccounts = async () => {
     try {
@@ -27,22 +32,14 @@ function Accounts() {
     }
   };
 
-  const handleAdd = async () => {
-    if (!form.accountName || !form.accessToken) {
-      toast.error('Account name and access token are required');
-      return;
-    }
-    setSubmitting(true);
+  const handleConnect = async (platform) => {
     try {
-      await accountsAPI.add(form);
-      toast.success('Account connected! ✅');
-      setShowForm(false);
-      setForm({ platform: 'instagram', accountName: '', accessToken: '', pageId: '' });
-      fetchAccounts();
+      // Get JWT token
+      const token = localStorage.getItem('token');
+      // Redirect to backend OAuth endpoint with token
+      window.location.href = `${process.env.REACT_APP_API_URL}/accounts/oauth/connect?platform=${platform}&token=${token}`;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add account');
-    } finally {
-      setSubmitting(false);
+      toast.error('Failed to start connection');
     }
   };
 
@@ -57,15 +54,6 @@ function Accounts() {
     }
   };
 
-  const inputStyle = {
-    width: '100%', padding: '11px 14px',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '10px', color: '#fff',
-    fontFamily: 'DM Sans', fontSize: '14px',
-    outline: 'none', boxSizing: 'border-box'
-  };
-
   const cardStyle = {
     background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.1)',
@@ -77,157 +65,81 @@ function Accounts() {
   return (
     <div style={{ maxWidth: '720px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontFamily: 'Syne', fontSize: '26px', fontWeight: 800, margin: 0 }}>
-            Connected Accounts
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.4)', marginTop: '6px', fontSize: '14px' }}>
-            Connect your Instagram and Facebook accounts to enable auto-reply.
-          </p>
-        </div>
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontFamily: 'Syne', fontSize: '26px', fontWeight: 800, margin: 0 }}>
+          Connected Accounts
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.4)', marginTop: '6px', fontSize: '14px' }}>
+          Connect your Instagram and Facebook accounts to enable auto-reply.
+        </p>
+      </div>
+
+      {/* Connect Buttons */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+        {/* Instagram */}
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => handleConnect('instagram')}
           style={{
-            padding: '10px 20px',
+            flex: 1, minWidth: '200px', padding: '18px 24px',
             background: 'linear-gradient(135deg, #7c3aed, #e1306c)',
-            border: 'none', borderRadius: '10px', color: '#fff',
-            fontFamily: 'DM Sans', fontWeight: 600, cursor: 'pointer',
-            fontSize: '14px', whiteSpace: 'nowrap'
+            border: 'none', borderRadius: '14px', color: '#fff',
+            fontFamily: 'DM Sans', fontWeight: 700, cursor: 'pointer',
+            fontSize: '15px', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: '10px',
+            boxShadow: '0 8px 32px rgba(225,48,108,0.3)'
           }}
         >
-          + Add Account
+          <span style={{ fontSize: '22px' }}>📸</span>
+          Connect Instagram
+        </button>
+
+        {/* Facebook */}
+        <button
+          onClick={() => handleConnect('facebook')}
+          style={{
+            flex: 1, minWidth: '200px', padding: '18px 24px',
+            background: 'linear-gradient(135deg, #1877f2, #0a5dc2)',
+            border: 'none', borderRadius: '14px', color: '#fff',
+            fontFamily: 'DM Sans', fontWeight: 700, cursor: 'pointer',
+            fontSize: '15px', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: '10px',
+            boxShadow: '0 8px 32px rgba(24,119,242,0.3)'
+          }}
+        >
+          <span style={{ fontSize: '22px' }}>👍</span>
+          Connect Facebook
         </button>
       </div>
 
-      {/* Add Account Form */}
-      {showForm && (
-        <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '16px', padding: '24px',
-          marginBottom: '24px'
-        }}>
-          <h3 style={{ fontFamily: 'Syne', fontWeight: 700, marginBottom: '20px', fontSize: '16px' }}>
-            Connect New Account
-          </h3>
+      {/* Info Box */}
+      <div style={{
+        background: 'rgba(124,58,237,0.1)',
+        border: '1px solid rgba(124,58,237,0.25)',
+        borderRadius: '12px', padding: '16px 20px',
+        marginBottom: '28px', fontSize: '13px',
+        color: 'rgba(255,255,255,0.6)', lineHeight: '1.7'
+      }}>
+        <strong style={{ color: '#a78bfa' }}>ℹ️ How it works:</strong><br />
+        Click "Connect Instagram" or "Connect Facebook" → you'll be redirected to Meta's secure login page → 
+        login with your account → grant permissions → you'll be brought back here automatically with your account connected. 
+        We never see your password.
+      </div>
 
-          {/* How to get token guide */}
-          <div style={{
-            background: 'rgba(124,58,237,0.15)',
-            border: '1px solid rgba(124,58,237,0.3)',
-            borderRadius: '10px', padding: '14px 16px',
-            marginBottom: '20px', fontSize: '13px',
-            color: 'rgba(255,255,255,0.7)', lineHeight: '1.6'
-          }}>
-            <strong style={{ color: '#a78bfa' }}>📖 How to get your Access Token:</strong><br />
-            1. Go to <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noreferrer" style={{ color: '#a78bfa' }}>Meta Graph API Explorer</a><br />
-            2. Select your App → Click "Generate Access Token"<br />
-            3. Add permissions: <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>pages_manage_engagement</code><br />
-            4. Copy the token and paste below<br />
-            <strong style={{ color: '#f472b6' }}>For Instagram:</strong> Page ID = your Instagram Business Account ID<br />
-            <strong style={{ color: '#60a5fa' }}>For Facebook:</strong> Page ID = your Facebook Page ID
-          </div>
+      {/* Connected Accounts List */}
+      <h3 style={{ fontFamily: 'Syne', fontWeight: 700, marginBottom: '16px', fontSize: '16px', color: 'rgba(255,255,255,0.7)' }}>
+        Connected Accounts
+      </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Platform */}
-            <div>
-              <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>
-                PLATFORM
-              </label>
-              <select
-                value={form.platform}
-                onChange={e => setForm({ ...form, platform: e.target.value })}
-                style={{ ...inputStyle }}
-              >
-                <option value="instagram">📸 Instagram</option>
-                <option value="facebook">👍 Facebook</option>
-              </select>
-            </div>
-
-            {/* Account Name */}
-            <div>
-              <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>
-                ACCOUNT USERNAME
-              </label>
-              <input
-                placeholder="e.g. ajclothing175"
-                value={form.accountName}
-                onChange={e => setForm({ ...form, accountName: e.target.value })}
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Access Token */}
-            <div>
-              <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>
-                ACCESS TOKEN
-              </label>
-              <textarea
-                placeholder="Paste your access token here..."
-                value={form.accessToken}
-                onChange={e => setForm({ ...form, accessToken: e.target.value })}
-                rows={3}
-                style={{ ...inputStyle, resize: 'vertical' }}
-              />
-            </div>
-
-            {/* Page ID */}
-            <div>
-              <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>
-                PAGE / ACCOUNT ID <span style={{ color: 'rgba(255,255,255,0.3)' }}>(optional but recommended)</span>
-              </label>
-              <input
-                placeholder="e.g. 17841435165711631"
-                value={form.pageId}
-                onChange={e => setForm({ ...form, pageId: e.target.value })}
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-              <button
-                onClick={handleAdd}
-                disabled={submitting}
-                style={{
-                  flex: 1, padding: '12px',
-                  background: 'linear-gradient(135deg, #7c3aed, #e1306c)',
-                  border: 'none', borderRadius: '10px', color: '#fff',
-                  fontFamily: 'DM Sans', fontWeight: 600,
-                  cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '14px'
-                }}
-              >
-                {submitting ? 'Connecting...' : 'Connect Account'}
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                style={{
-                  padding: '12px 20px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: '#fff',
-                  fontFamily: 'DM Sans', cursor: 'pointer', fontSize: '14px'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Accounts List */}
       {loading ? (
         <p style={{ color: 'rgba(255,255,255,0.4)' }}>Loading accounts...</p>
       ) : accounts.length === 0 ? (
         <div style={{
           ...cardStyle, justifyContent: 'center',
-          flexDirection: 'column', padding: '48px',
-          textAlign: 'center'
+          flexDirection: 'column', padding: '48px', textAlign: 'center'
         }}>
           <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔗</div>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
-            No accounts connected yet. Click "Add Account" to get started.
+            No accounts connected yet. Click a button above to connect.
           </p>
         </div>
       ) : (
