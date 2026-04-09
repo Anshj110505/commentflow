@@ -15,7 +15,6 @@ import Layout from './components/Layout';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 
-
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
   if (loading) return (
@@ -47,8 +46,13 @@ function App() {
           }}
         />
         <Routes>
+          {/* Public routes - no login needed */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+
+          {/* Protected routes - login required */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
@@ -60,9 +64,8 @@ function App() {
             <Route path="queue" element={<Queue />} />
             <Route path="logs" element={<Logs />} />
             <Route path="accounts" element={<Accounts />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
           </Route>
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
