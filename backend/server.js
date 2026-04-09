@@ -17,8 +17,11 @@ const app = express();
 
 // ── Middleware ────────────────────────────────────────────
 app.use(cors({
-  origin: '*',
-  credentials: false
+  origin: [
+    'http://localhost:3000',
+    'https://commentflow-one.vercel.app'
+  ],
+  credentials: true
 }));
 app.use(express.json());
 

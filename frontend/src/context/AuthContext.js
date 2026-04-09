@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authAPI } from '../utils/api';
 
 // Create the context
 const AuthContext = createContext();
@@ -20,7 +21,21 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Register function - calls API to create new account
+  const register = async (name, email, password) => {
+    const response = await authAPI.register({ name, email, password });
+    login(response.data.token, response.data.user);
+    return response.data;
+  };
+
   // Login function - saves token and user to localStorage
+  const loginUser = async (email, password) => {
+    const response = await authAPI.login({ email, password });
+    login(response.data.token, response.data.user);
+    return response.data;
+  };
+
+  // Save token and user to state and localStorage
   const login = (tokenData, userData) => {
     localStorage.setItem('token', tokenData);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -41,9 +56,10 @@ export const AuthProvider = ({ children }) => {
       user, 
       token, 
       loading,
-      login, 
+      register,
+      login: loginUser,
       logout,
-      isLoggedIn: !!token  // true if token exists
+      isLoggedIn: !!token
     }}>
       {children}
     </AuthContext.Provider>
