@@ -4,8 +4,6 @@ const SocialAccount = require('../models/SocialAccount');
 const axios = require('axios');
 
 // ── VERIFY WEBHOOK (Meta requires this) ───────────────
-// When you set up webhook in Meta dashboard,
-// Meta sends a verification request first
 exports.verifyWebhook = (req, res) => {
   const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
   const mode = req.query['hub.mode'];
@@ -21,26 +19,19 @@ exports.verifyWebhook = (req, res) => {
 };
 
 // ── HANDLE INCOMING WEBHOOK ───────────────────────────
-// This runs every time someone comments on your post
 exports.handleWebhook = async (req, res) => {
   try {
     const body = req.body;
-
-    // Always respond 200 immediately
-    // Meta will retry if you don't respond fast
     res.status(200).send('EVENT_RECEIVED');
 
-    // Process the webhook data
+    console.log('Webhook received:', JSON.stringify(body, null, 2));
+
     if (body.object === 'instagram' || body.object === 'page') {
       for (const entry of body.entry) {
         for (const change of entry.changes) {
-
-          // Someone commented on a post
           if (change.field === 'comments') {
             await handleComment(change.value, body.object);
           }
-
-          // Someone sent a DM
           if (change.field === 'messages') {
             await handleDM(change.value, body.object);
           }
@@ -61,39 +52,52 @@ async function handleComment(data, platform) {
     const commenterName = data.from?.name || 'there';
     const commenterId = data.from?.id;
 
-    console.log(`New comment on post ${postId}: "${commentText}"`);
+    // Extract shortcode from permalink or media shortcode
+    const shortcode = data.media?.shortcode ||
+      (data.permalink ? data.permalink.match(/\/(p|reel|tv)\/([^/?]+)/)?.[2] : null);
 
-    // Find matching active campaign for this post
+    console.log(`New comment on post ${postId} (shortcode: ${shortcode}): "${commentText}"`);
+
+    // Match campaign by numeric ID OR shortcode
     const campaigns = await Campaign.find({
-      postId: postId,
+      $or: [
+        { postId: postId },
+        ...(shortcode ? [{ postId: shortcode }] : [])
+      ],
       isActive: true,
       platform: platform === 'instagram' ? 'instagram' : 'facebook'
     });
 
+    console.log(`Found ${campaigns.length} matching campaigns`);
+
     for (const campaign of campaigns) {
-      // Check if this comment should trigger the campaign
       const shouldTrigger = checkTrigger(
         campaign.triggerType,
         campaign.keywords,
         commentText
       );
 
-      if (!shouldTrigger) continue;
+      if (!shouldTrigger) {
+        console.log(`Comment did not match trigger for campaign: ${campaign.name}`);
+        continue;
+      }
 
-      // Get the social account for this campaign
       const account = await SocialAccount.findOne({
         userId: campaign.userId,
         platform: campaign.platform,
         isActive: true
       });
 
-      if (!account) continue;
+      if (!account) {
+        console.log('No active social account found for campaign');
+        continue;
+      }
 
       let publicReplySent = false;
       let dmSent = false;
       let dmText = '';
 
-      // 1. Post public reply on the comment
+      // 1. Post public reply
       try {
         await axios.post(
           `https://graph.facebook.com/v18.0/${commentId}/replies`,
@@ -105,20 +109,20 @@ async function handleComment(data, platform) {
         publicReplySent = true;
         console.log(`✅ Public reply sent to comment ${commentId}`);
       } catch (err) {
-        console.error('Public reply failed:', err.response?.data?.error?.message);
+        console.error('Public reply failed:', err.response?.data?.error?.message || err.message);
       }
 
-      // 2. Send private DM with product link
+      // 2. Send DM
       try {
         dmText = buildDMMessage(campaign, commenterName);
         await sendDM(commenterId, dmText, account.accessToken, platform);
         dmSent = true;
         console.log(`✅ DM sent to ${commenterName}`);
       } catch (err) {
-        console.error('DM failed:', err.response?.data?.error?.message);
+        console.error('DM failed:', err.response?.data?.error?.message || err.message);
       }
 
-      // 3. Log this auto reply
+      // 3. Log auto reply
       await AutoReplyLog.create({
         campaignId: campaign._id,
         userId: campaign.userId,
@@ -138,6 +142,8 @@ async function handleComment(data, platform) {
       campaign.totalReplies += 1;
       if (dmSent) campaign.totalDMs += 1;
       await campaign.save();
+
+      console.log(`✅ Campaign "${campaign.name}" triggered successfully`);
     }
   } catch (err) {
     console.error('Handle comment error:', err.message);
@@ -146,24 +152,20 @@ async function handleComment(data, platform) {
 
 // ── HANDLE DM ─────────────────────────────────────────
 async function handleDM(data, platform) {
-  console.log('New DM received:', data);
-  // DM handling can be expanded later
+  console.log('New DM received:', JSON.stringify(data));
 }
 
 // ── BUILD DM MESSAGE ──────────────────────────────────
 function buildDMMessage(campaign, name) {
-  // Replace {name} placeholder with actual name
   let message = campaign.dmGreeting.replace('{name}', name);
   message += '\n\n';
 
   if (campaign.productName) {
     message += `📦 *${campaign.productName}*\n`;
   }
-
   if (campaign.productLink) {
     message += `🔗 ${campaign.productLink}\n`;
   }
-
   if (campaign.includeDescription && campaign.productDescription) {
     message += `\n${campaign.productDescription}\n`;
   }
@@ -174,42 +176,25 @@ function buildDMMessage(campaign, name) {
 
 // ── SEND DM ───────────────────────────────────────────
 async function sendDM(userId, message, accessToken, platform) {
-  if (platform === 'instagram') {
-    // Instagram DM
-    await axios.post(
-      'https://graph.facebook.com/v18.0/me/messages',
-      {
-        recipient: { id: userId },
-        message: { text: message },
-        access_token: accessToken
-      }
-    );
-  } else {
-    // Facebook DM
-    await axios.post(
-      'https://graph.facebook.com/v18.0/me/messages',
-      {
-        recipient: { id: userId },
-        message: { text: message },
-        access_token: accessToken
-      }
-    );
-  }
+  await axios.post(
+    'https://graph.facebook.com/v18.0/me/messages',
+    {
+      recipient: { id: userId },
+      message: { text: message },
+      access_token: accessToken
+    }
+  );
 }
 
-// ── CHECK IF COMMENT SHOULD TRIGGER ──────────────────
+// ── CHECK TRIGGER ─────────────────────────────────────
 function checkTrigger(triggerType, keywords, commentText) {
   const text = commentText.toLowerCase();
-
   if (triggerType === 'all') return true;
-
   if (triggerType === 'keywords' || triggerType === 'both') {
     const hasKeyword = keywords.some(kw => text.includes(kw.toLowerCase()));
     if (hasKeyword) return true;
   }
-
   if (triggerType === 'both') return true;
-
   return false;
 }
 
