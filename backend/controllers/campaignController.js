@@ -1,18 +1,51 @@
 const Campaign = require('../models/Campaign');
 const AutoReplyLog = require('../models/AutoReplyLog');
+const SocialAccount = require('../models/SocialAccount');
+const axios = require('axios');
 
-// Extract post ID from Instagram/Facebook URL
-function extractPostId(input) {
-  if (!input) return input;
-  // If it's already just an ID (numbers only), return as is
+// Extract shortcode from Instagram URL
+function extractShortcode(input) {
+  if (!input) return null;
+  // Already a numeric ID
+  if (/^\d+$/.test(input.trim())) return null;
+  // Extract shortcode from URL: /p/ABC123/ or /reel/ABC123/
+  const match = input.match(/\/(p|reel|tv)\/([^/?]+)/);
+  if (match) return match[2];
+  return null;
+}
+
+// Convert shortcode to numeric Media ID using Instagram API
+async function resolvePostId(input, accessToken) {
+  if (!input) return null;
+  
+  // Already a numeric ID - return as is
   if (/^\d+$/.test(input.trim())) return input.trim();
-  // Extract from Instagram URL: /p/ABC123/ or /reel/ABC123/
-  const igMatch = input.match(/\/(p|reel|tv)\/([^/?]+)/);
-  if (igMatch) return igMatch[2];
-  // Extract from Facebook URL
-  const fbMatch = input.match(/\/(\d+)\/?$/);
-  if (fbMatch) return fbMatch[1];
-  return input.trim();
+  
+  const shortcode = extractShortcode(input);
+  if (!shortcode) return input.trim();
+
+  try {
+    // Use oEmbed API to get media ID from shortcode (no auth needed)
+    const response = await axios.get(
+      `https://graph.facebook.com/v18.0/instagram_oembed?url=https://www.instagram.com/p/${shortcode}/&access_token=${accessToken}`
+    );
+    
+    // Try to get media via search
+    const mediaResponse = await axios.get(
+      `https://graph.facebook.com/v18.0/me/media?fields=id,permalink&access_token=${accessToken}&limit=50`
+    );
+    
+    const posts = mediaResponse.data.data || [];
+    const match = posts.find(p => p.permalink && p.permalink.includes(shortcode));
+    
+    if (match) return match.id;
+    
+    // If not found, return shortcode and let webhook handle matching
+    return shortcode;
+  } catch (err) {
+    console.error('Error resolving post ID:', err.message);
+    return shortcode;
+  }
 }
 
 // ── GET ALL CAMPAIGNS ─────────────────────────────────
@@ -36,21 +69,36 @@ exports.createCampaign = async (req, res) => {
       includeDescription, productDescription
     } = req.body;
 
-    // Validate required fields
     if (!name || !platform || (!postId && !postUrl) || !publicReply) {
       return res.status(400).json({
-        message: 'Name, platform, post URL/ID and publicReply are required'
+        message: 'Name, platform, post URL and publicReply are required'
       });
     }
 
-    // Extract post ID from URL or use directly if already an ID
-    const resolvedPostId = extractPostId(postId || postUrl);
+    // Get the user's connected account to use its access token
+    const account = await SocialAccount.findOne({
+      userId: req.user.id,
+      platform: platform,
+      isActive: true
+    });
+
+    if (!account) {
+      return res.status(400).json({
+        message: `No connected ${platform} account found. Please connect your account first.`
+      });
+    }
+
+    // Resolve post URL to numeric Media ID automatically
+    const inputUrl = postUrl || postId;
+    const resolvedPostId = await resolvePostId(inputUrl, account.accessToken);
+
+    console.log(`Campaign created - Input: ${inputUrl} → Resolved ID: ${resolvedPostId}`);
 
     const campaign = await Campaign.create({
       userId: req.user.id,
       name,
       platform,
-      postUrl: postUrl || postId,
+      postUrl: inputUrl,
       postId: resolvedPostId,
       triggerType: triggerType || 'keywords',
       keywords: keywords || [],
@@ -71,11 +119,6 @@ exports.createCampaign = async (req, res) => {
 // ── UPDATE CAMPAIGN ───────────────────────────────────
 exports.updateCampaign = async (req, res) => {
   try {
-    // If postUrl or postId is being updated, extract the ID
-    if (req.body.postUrl || req.body.postId) {
-      req.body.postId = extractPostId(req.body.postId || req.body.postUrl);
-    }
-
     const campaign = await Campaign.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.id },
       req.body,
