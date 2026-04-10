@@ -35,7 +35,6 @@ const defaultForm = {
   name: '',
   platform: 'instagram',
   postUrl: '',
-  postId: '',
   triggerType: 'keywords',
   keywords: '',
   publicReply: 'Hey! 👋 Check your DMs, we just sent you something special! 📩',
@@ -67,21 +66,22 @@ function Campaigns() {
   };
 
   const saveCampaign = async () => {
-    if (!form.name || !form.postId || !form.publicReply) {
-      toast.error('Name, Post ID and Public Reply are required');
+    if (!form.name || !form.postUrl || !form.publicReply) {
+      toast.error('Name, Post URL and Public Reply are required');
       return;
     }
     setSaving(true);
     try {
       const payload = {
         ...form,
+        postId: form.postUrl, // backend will auto-resolve to numeric ID
         keywords: form.keywords.split(',').map(k => k.trim()).filter(Boolean),
       };
       const res = await api.post('/campaigns', payload);
       setCampaigns([res.data, ...campaigns]);
       setForm(defaultForm);
       setShowForm(false);
-      toast.success('Campaign created!');
+      toast.success('Campaign created! ✅');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create');
     } finally {
@@ -153,39 +153,49 @@ function Campaigns() {
             {/* Campaign Name */}
             <div>
               <label style={labelStyle}>Campaign Name *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                placeholder="Summer Sale" style={inputStyle} />
+              <input
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                placeholder="Summer Sale"
+                style={inputStyle}
+              />
             </div>
 
             {/* Platform */}
             <div>
               <label style={labelStyle}>Platform *</label>
-              <select value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })}
-                style={{ ...inputStyle, cursor: 'pointer' }}>
+              <select
+                value={form.platform}
+                onChange={e => setForm({ ...form, platform: e.target.value })}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
                 <option value="instagram">Instagram</option>
                 <option value="facebook">Facebook</option>
               </select>
             </div>
 
-            {/* Post URL */}
-            <div>
-              <label style={labelStyle}>Post / Reel URL</label>
-              <input value={form.postUrl} onChange={e => setForm({ ...form, postUrl: e.target.value })}
-                placeholder="https://instagram.com/p/abc123" style={inputStyle} />
-            </div>
-
-            {/* Post ID */}
-            <div>
-              <label style={labelStyle}>Post ID *</label>
-              <input value={form.postId} onChange={e => setForm({ ...form, postId: e.target.value })}
-                placeholder="17854360229135492" style={inputStyle} />
+            {/* Post URL — full width, no Post ID field */}
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={labelStyle}>Post / Reel URL *</label>
+              <input
+                value={form.postUrl}
+                onChange={e => setForm({ ...form, postUrl: e.target.value })}
+                placeholder="https://www.instagram.com/reel/ABC123xyz/"
+                style={inputStyle}
+              />
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'DM Mono' }}>
+                Paste your full Instagram or Facebook post/reel URL — we'll handle the rest automatically
+              </div>
             </div>
 
             {/* Trigger Type */}
             <div>
               <label style={labelStyle}>Trigger Type</label>
-              <select value={form.triggerType} onChange={e => setForm({ ...form, triggerType: e.target.value })}
-                style={{ ...inputStyle, cursor: 'pointer' }}>
+              <select
+                value={form.triggerType}
+                onChange={e => setForm({ ...form, triggerType: e.target.value })}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
                 <option value="keywords">Keywords Only</option>
                 <option value="all">All Comments</option>
                 <option value="both">Both</option>
@@ -195,16 +205,23 @@ function Campaigns() {
             {/* Keywords */}
             <div>
               <label style={labelStyle}>Keywords (comma separated)</label>
-              <input value={form.keywords} onChange={e => setForm({ ...form, keywords: e.target.value })}
-                placeholder="price, buy, cost, link, where" style={inputStyle}
-                disabled={form.triggerType === 'all'} />
+              <input
+                value={form.keywords}
+                onChange={e => setForm({ ...form, keywords: e.target.value })}
+                placeholder="price, buy, cost, link, where"
+                style={inputStyle}
+                disabled={form.triggerType === 'all'}
+              />
             </div>
 
             {/* Public Reply */}
             <div style={{ gridColumn: 'span 2' }}>
               <label style={labelStyle}>Public Comment Reply *</label>
-              <textarea value={form.publicReply} onChange={e => setForm({ ...form, publicReply: e.target.value })}
-                style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }} />
+              <textarea
+                value={form.publicReply}
+                onChange={e => setForm({ ...form, publicReply: e.target.value })}
+                style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }}
+              />
               <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', fontFamily: 'DM Mono' }}>
                 This is posted publicly as a reply to the comment
               </div>
@@ -213,22 +230,34 @@ function Campaigns() {
             {/* DM Greeting */}
             <div style={{ gridColumn: 'span 2' }}>
               <label style={labelStyle}>DM Greeting — use {'{name}'} for their name</label>
-              <input value={form.dmGreeting} onChange={e => setForm({ ...form, dmGreeting: e.target.value })}
-                placeholder="Hey {name}! 👋 Thanks for your interest!" style={inputStyle} />
+              <input
+                value={form.dmGreeting}
+                onChange={e => setForm({ ...form, dmGreeting: e.target.value })}
+                placeholder="Hey {name}! 👋 Thanks for your interest!"
+                style={inputStyle}
+              />
             </div>
 
             {/* Product Name */}
             <div>
               <label style={labelStyle}>Product Name</label>
-              <input value={form.productName} onChange={e => setForm({ ...form, productName: e.target.value })}
-                placeholder="Summer Floral Dress" style={inputStyle} />
+              <input
+                value={form.productName}
+                onChange={e => setForm({ ...form, productName: e.target.value })}
+                placeholder="Summer Floral Dress"
+                style={inputStyle}
+              />
             </div>
 
             {/* Product Link */}
             <div>
               <label style={labelStyle}>Product Link (any URL)</label>
-              <input value={form.productLink} onChange={e => setForm({ ...form, productLink: e.target.value })}
-                placeholder="https://yourstore.com/product" style={inputStyle} />
+              <input
+                value={form.productLink}
+                onChange={e => setForm({ ...form, productLink: e.target.value })}
+                placeholder="https://yourstore.com/product"
+                style={inputStyle}
+              />
             </div>
 
             {/* Include Description Toggle */}
@@ -258,10 +287,12 @@ function Campaigns() {
             {form.includeDescription && (
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>Product Description</label>
-                <textarea value={form.productDescription}
+                <textarea
+                  value={form.productDescription}
                   onChange={e => setForm({ ...form, productDescription: e.target.value })}
                   placeholder="Beautiful summer dress available in 5 colors. Premium quality!"
-                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} />
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+                />
               </div>
             )}
           </div>
@@ -286,10 +317,7 @@ function Campaigns() {
 
       {/* Campaign List */}
       {campaigns.length === 0 ? (
-        <div style={{
-          ...glass, padding: '60px', textAlign: 'center',
-          color: 'var(--text-dim)', fontSize: '13px'
-        }}>
+        <div style={{ ...glass, padding: '60px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
           No campaigns yet.{' '}
           <span style={{ color: '#a78bfa', cursor: 'pointer' }} onClick={() => setShowForm(true)}>
             Create your first one →
@@ -303,14 +331,11 @@ function Campaigns() {
               display: 'flex', alignItems: 'center', gap: '16px',
               borderLeft: `3px solid ${c.isActive ? '#7c3aed' : 'rgba(255,255,255,0.1)'}`,
             }}>
-              {/* Status dot */}
               <div style={{
                 width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
                 background: c.isActive ? '#10b981' : '#3a3a5a',
                 boxShadow: c.isActive ? '0 0 8px #10b981' : 'none',
               }} />
-
-              {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
                   {c.name}
@@ -324,14 +349,12 @@ function Campaigns() {
                   <span>Replies: {c.totalReplies}</span>
                   <span>DMs: {c.totalDMs}</span>
                 </div>
-                {c.productLink && (
-                  <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '4px', fontFamily: 'DM Mono' }}>
-                    🔗 {c.productName || c.productLink}
+                {c.postUrl && (
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    🔗 {c.postUrl}
                   </div>
                 )}
               </div>
-
-              {/* Platform badge */}
               <span style={{
                 padding: '4px 10px', borderRadius: '20px', fontSize: '10px', fontFamily: 'DM Mono',
                 background: c.isActive ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)',
@@ -341,32 +364,22 @@ function Campaigns() {
               }}>
                 {c.isActive ? 'Active' : 'Paused'}
               </span>
-
-              {/* Toggle */}
-              <button
-                onClick={() => toggleCampaign(c._id)}
-                style={{
-                  padding: '6px 14px', borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text-muted)', fontSize: '12px',
-                  cursor: 'pointer', fontFamily: 'DM Sans', flexShrink: 0,
-                }}
-              >
+              <button onClick={() => toggleCampaign(c._id)} style={{
+                padding: '6px 14px', borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--text-muted)', fontSize: '12px',
+                cursor: 'pointer', fontFamily: 'DM Sans', flexShrink: 0,
+              }}>
                 {c.isActive ? 'Pause' : 'Activate'}
               </button>
-
-              {/* Delete */}
-              <button
-                onClick={() => deleteCampaign(c._id)}
-                style={{
-                  padding: '6px 14px', borderRadius: '8px',
-                  background: 'rgba(225,48,108,0.08)',
-                  border: '1px solid rgba(225,48,108,0.2)',
-                  color: '#e1306c', fontSize: '12px',
-                  cursor: 'pointer', fontFamily: 'DM Sans', flexShrink: 0,
-                }}
-              >
+              <button onClick={() => deleteCampaign(c._id)} style={{
+                padding: '6px 14px', borderRadius: '8px',
+                background: 'rgba(225,48,108,0.08)',
+                border: '1px solid rgba(225,48,108,0.2)',
+                color: '#e1306c', fontSize: '12px',
+                cursor: 'pointer', fontFamily: 'DM Sans', flexShrink: 0,
+              }}>
                 Delete
               </button>
             </div>
