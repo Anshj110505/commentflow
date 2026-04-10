@@ -6,9 +6,7 @@ const axios = require('axios');
 // Extract shortcode from Instagram URL
 function extractShortcode(input) {
   if (!input) return null;
-  // Already a numeric ID
   if (/^\d+$/.test(input.trim())) return null;
-  // Extract shortcode from URL: /p/ABC123/ or /reel/ABC123/
   const match = input.match(/\/(p|reel|tv)\/([^/?]+)/);
   if (match) return match[2];
   return null;
@@ -17,31 +15,40 @@ function extractShortcode(input) {
 // Convert shortcode to numeric Media ID using Instagram API
 async function resolvePostId(input, accessToken) {
   if (!input) return null;
-  
+
   // Already a numeric ID - return as is
   if (/^\d+$/.test(input.trim())) return input.trim();
-  
+
   const shortcode = extractShortcode(input);
   if (!shortcode) return input.trim();
 
   try {
-    // Use oEmbed API to get media ID from shortcode (no auth needed)
-    const response = await axios.get(
-      `https://graph.facebook.com/v18.0/instagram_oembed?url=https://www.instagram.com/p/${shortcode}/&access_token=${accessToken}`
-    );
-    
-    // Try to get media via search
-    const mediaResponse = await axios.get(
-      `https://graph.facebook.com/v18.0/me/media?fields=id,permalink&access_token=${accessToken}&limit=50`
-    );
-    
-    const posts = mediaResponse.data.data || [];
-    const match = posts.find(p => p.permalink && p.permalink.includes(shortcode));
-    
-    if (match) return match.id;
-    
-    // If not found, return shortcode and let webhook handle matching
+    // Page through all media to find matching shortcode
+    let url = `https://graph.facebook.com/v18.0/me/media?fields=id,permalink,shortcode&access_token=${accessToken}&limit=50`;
+
+    while (url) {
+      const response = await axios.get(url);
+      const posts = response.data.data || [];
+
+      // Match by shortcode in permalink or shortcode field
+      const match = posts.find(p =>
+        p.permalink?.includes(shortcode) ||
+        p.shortcode === shortcode
+      );
+
+      if (match) {
+        console.log(`✅ Resolved shortcode ${shortcode} → ID ${match.id}`);
+        return match.id;
+      }
+
+      // Go to next page if exists
+      url = response.data.paging?.next || null;
+    }
+
+    // Not found in media list - return shortcode, webhook will match it
+    console.log(`⚠️ Could not resolve ${shortcode} to numeric ID, using shortcode`);
     return shortcode;
+
   } catch (err) {
     console.error('Error resolving post ID:', err.message);
     return shortcode;
