@@ -60,22 +60,17 @@ exports.deleteAccount = async (req, res) => {
 // ── OAUTH CONNECT — redirect user to Meta login ───────
 exports.oauthConnect = async (req, res) => {
   try {
-    // userId comes from auth middleware (supports token in query param too)
     const userId = req.user.id;
     const platform = req.query.platform || 'instagram';
 
-    // Encode userId and platform in state so we can retrieve after callback
     const state = Buffer.from(JSON.stringify({ userId, platform })).toString('base64');
 
     const redirectUri = `${BACKEND_URL}/api/accounts/oauth/callback`;
 
+    // ✅ FIXED SCOPES — works in Development mode without App Review
     const scopes = [
-      'instagram_basic',
       'instagram_manage_comments',
-      'instagram_manage_messages',
       'pages_show_list',
-      'pages_read_engagement',
-      'pages_manage_engagement',
       'pages_messaging',
       'public_profile'
     ].join(',');
@@ -97,7 +92,6 @@ exports.oauthCallback = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/accounts?error=oauth_cancelled`);
     }
 
-    // Decode state to get userId and platform
     const { userId, platform } = JSON.parse(Buffer.from(state, 'base64').toString());
 
     const redirectUri = `${BACKEND_URL}/api/accounts/oauth/callback`;
@@ -138,7 +132,6 @@ exports.oauthCallback = async (req, res) => {
     const pages = fbUser.accounts?.data || [];
 
     if (platform === 'instagram') {
-      // Get Instagram Business Account linked to each Facebook page
       for (const page of pages) {
         const igRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
           params: {
@@ -150,7 +143,6 @@ exports.oauthCallback = async (req, res) => {
         const igAccount = igRes.data.instagram_business_account;
         if (!igAccount) continue;
 
-        // Get Instagram username
         const igInfoRes = await axios.get(`https://graph.facebook.com/v18.0/${igAccount.id}`, {
           params: {
             fields: 'id,username',
@@ -160,7 +152,6 @@ exports.oauthCallback = async (req, res) => {
 
         const igUsername = igInfoRes.data.username;
 
-        // Save or update account in DB
         await SocialAccount.findOneAndUpdate(
           { userId, platform: 'instagram', pageId: igAccount.id },
           {
@@ -192,7 +183,6 @@ exports.oauthCallback = async (req, res) => {
       }
     }
 
-    // Redirect back to frontend with success
     res.redirect(`${FRONTEND_URL}/accounts?success=true`);
 
   } catch (err) {
