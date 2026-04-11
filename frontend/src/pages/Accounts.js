@@ -26,16 +26,24 @@ function Accounts() {
   }, []);
 
   const fetchAccounts = async () => {
-    try {
-      setLoading(true);
-      const res = await accountsAPI.getAll();
-      setAccounts(res.data);
-    } catch (err) {
-      toast.error('Failed to load accounts');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    const res = await fetch('https://commentflow-q67q.onrender.com/api/accounts', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
+    });
+    const data = await res.json();
+    console.log('Accounts data:', data);
+    setAccounts(data);
+  } catch (err) {
+    toast.error('Failed to load accounts');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleConnect = async (platform) => {
   try {
