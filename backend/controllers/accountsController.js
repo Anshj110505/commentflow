@@ -90,12 +90,12 @@ exports.oauthCallback = async (req, res) => {
     const longLivedToken = longTokenRes.data.access_token;
     console.log('Got long-lived token');
 
-    // Step 3 — get pages
-    const meRes = await axios.get('https://graph.facebook.com/v18.0/me', {
-      params: { access_token: longLivedToken, fields: 'id,name,accounts' }
-    });
-    const pages = meRes.data.accounts?.data || [];
-    console.log('Pages found:', pages.length);
+   // Step 3 — get pages
+const meRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+  params: { access_token: longLivedToken }
+});
+const pages = meRes.data.data || [];
+console.log('Pages found:', pages.length);
 
     if (platform === 'instagram') {
       for (const page of pages) {
