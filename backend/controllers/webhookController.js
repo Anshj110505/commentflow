@@ -52,18 +52,16 @@ async function handleComment(data, platform) {
     const commenterName = data.from?.name || 'there';
     const commenterId = data.from?.id;
 
-    // Extract shortcode from permalink or media shortcode
     const shortcode = data.media?.shortcode ||
       (data.permalink ? data.permalink.match(/\/(p|reel|tv)\/([^/?]+)/)?.[2] : null);
 
     console.log(`New comment on post ${postId} (shortcode: ${shortcode}): "${commentText}"`);
 
-    // Match campaign by numeric ID OR shortcode
     const campaigns = await Campaign.find({
-  isActive: true,
-  platform: platform === 'instagram' ? 'instagram' : 'facebook',
-  userId: { $exists: true }
-});
+      isActive: true,
+      platform: platform === 'instagram' ? 'instagram' : 'facebook',
+      userId: { $exists: true }
+    });
 
     console.log(`Found ${campaigns.length} matching campaigns`);
 
@@ -98,9 +96,12 @@ async function handleComment(data, platform) {
       try {
         await axios.post(
           `https://graph.facebook.com/v18.0/${commentId}/replies`,
+          null,
           {
-            message: campaign.publicReply,
-            access_token: account.accessToken
+            params: {
+              message: campaign.publicReply,
+              access_token: account.accessToken
+            }
           }
         );
         publicReplySent = true;
@@ -175,10 +176,13 @@ function buildDMMessage(campaign, name) {
 async function sendDM(userId, message, accessToken, platform) {
   await axios.post(
     'https://graph.facebook.com/v18.0/61576483270957/messages',
+    null,
     {
-      recipient: { id: userId },
-      message: { text: message },
-      access_token: accessToken
+      params: {
+        recipient: JSON.stringify({ id: userId }),
+        message: JSON.stringify({ text: message }),
+        access_token: accessToken
+      }
     }
   );
 }
