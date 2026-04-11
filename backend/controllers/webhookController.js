@@ -60,13 +60,10 @@ async function handleComment(data, platform) {
 
     // Match campaign by numeric ID OR shortcode
     const campaigns = await Campaign.find({
-      $or: [
-        { postId: postId },
-        ...(shortcode ? [{ postId: shortcode }] : [])
-      ],
-      isActive: true,
-      platform: platform === 'instagram' ? 'instagram' : 'facebook'
-    });
+  isActive: true,
+  platform: platform === 'instagram' ? 'instagram' : 'facebook',
+  userId: { $exists: true }
+});
 
     console.log(`Found ${campaigns.length} matching campaigns`);
 
