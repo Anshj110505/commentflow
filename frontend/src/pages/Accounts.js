@@ -38,19 +38,18 @@ function Accounts() {
   };
 
   const handleConnect = async (platform) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please login first');
-        return;
-      }
-      // ✅ FIXED — added /api/ in the URL
-      const baseURL = process.env.REACT_APP_API_URL.replace('/api', '');
-      window.location.href = `${baseURL}/api/accounts/oauth/connect?platform=${platform}&token=${token}`;
-    } catch (err) {
-      toast.error('Failed to start connection');
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      return;
     }
-  };
+    // Hardcoded URL — fixes undefined env variable issue
+    window.location.href = `https://commentflow-q67q.onrender.com/api/accounts/oauth/connect?platform=${platform}&token=${token}`;
+  } catch (err) {
+    toast.error('Failed to start connection');
+  }
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm('Disconnect this account?')) return;
