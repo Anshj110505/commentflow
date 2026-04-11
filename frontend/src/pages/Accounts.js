@@ -8,11 +8,11 @@ function Accounts() {
 
   useEffect(() => {
     fetchAccounts();
-    // Check if returning from OAuth
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
       toast.success('Account connected successfully! ✅');
       window.history.replaceState({}, '', '/accounts');
+      fetchAccounts(); // re-fetch after OAuth redirect
     }
     if (params.get('error')) {
       toast.error('Failed to connect account. Please try again.');
@@ -22,9 +22,10 @@ function Accounts() {
 
   const fetchAccounts = async () => {
     try {
+      setLoading(true);
       const res = await accountsAPI.getAll();
       setAccounts(res.data);
-    } catch {
+    } catch (err) {
       toast.error('Failed to load accounts');
     } finally {
       setLoading(false);
@@ -33,10 +34,14 @@ function Accounts() {
 
   const handleConnect = async (platform) => {
     try {
-      // Get JWT token
       const token = localStorage.getItem('token');
-      // Redirect to backend OAuth endpoint with token
-      window.location.href = `${process.env.REACT_APP_API_URL}/accounts/oauth/connect?platform=${platform}&token=${token}`;
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+      // ✅ FIXED — added /api/ in the URL
+      const baseURL = process.env.REACT_APP_API_URL.replace('/api', '');
+      window.location.href = `${baseURL}/api/accounts/oauth/connect?platform=${platform}&token=${token}`;
     } catch (err) {
       toast.error('Failed to start connection');
     }
@@ -75,7 +80,6 @@ function Accounts() {
 
       {/* Connect Buttons */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
-        {/* Instagram */}
         <button
           onClick={() => handleConnect('instagram')}
           style={{
@@ -92,7 +96,6 @@ function Accounts() {
           Connect Instagram
         </button>
 
-        {/* Facebook */}
         <button
           onClick={() => handleConnect('facebook')}
           style={{
@@ -119,8 +122,8 @@ function Accounts() {
         color: 'rgba(255,255,255,0.6)', lineHeight: '1.7'
       }}>
         <strong style={{ color: '#a78bfa' }}>ℹ️ How it works:</strong><br />
-        Click "Connect Instagram" or "Connect Facebook" → you'll be redirected to Meta's secure login page → 
-        login with your account → grant permissions → you'll be brought back here automatically with your account connected. 
+        Click "Connect Instagram" or "Connect Facebook" → you'll be redirected to Meta's secure login page →
+        login with your account → grant permissions → you'll be brought back here automatically.
         We never see your password.
       </div>
 
