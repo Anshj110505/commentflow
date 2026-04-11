@@ -7,16 +7,21 @@ function Accounts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAccounts();
     const params = new URLSearchParams(window.location.search);
+    
     if (params.get('success') === 'true') {
+      window.history.replaceState({}, '', '/accounts');
       toast.success('Account connected successfully! ✅');
+      // Wait a moment then fetch so DB has time to save
+      setTimeout(() => {
+        fetchAccounts();
+      }, 1500);
+    } else if (params.get('error')) {
       window.history.replaceState({}, '', '/accounts');
-      fetchAccounts(); // re-fetch after OAuth redirect
-    }
-    if (params.get('error')) {
       toast.error('Failed to connect account. Please try again.');
-      window.history.replaceState({}, '', '/accounts');
+      fetchAccounts();
+    } else {
+      fetchAccounts();
     }
   }, []);
 
