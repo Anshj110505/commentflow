@@ -113,7 +113,7 @@ async function handleComment(data, platform) {
       // 2. Send DM
       try {
         dmText = buildDMMessage(campaign, commenterName);
-        await sendDM(commenterId, dmText, account.accessToken, platform);
+        await sendDM(commenterId, dmText, account.accessToken, account.pageId);
         dmSent = true;
         console.log(`✅ DM sent to ${commenterName}`);
       } catch (err) {
@@ -173,9 +173,9 @@ function buildDMMessage(campaign, name) {
 }
 
 // ── SEND DM ───────────────────────────────────────────
-async function sendDM(userId, message, accessToken, platform) {
+async function sendDM(userId, message, accessToken, pageId) {
   await axios.post(
-    '`https://graph.facebook.com/v18.0/${account.pageId}/messages`,',
+    `https://graph.facebook.com/v18.0/${pageId}/messages`,
     null,
     {
       params: {
