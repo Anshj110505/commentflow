@@ -175,7 +175,7 @@ function buildDMMessage(campaign, name) {
 // ── SEND DM ───────────────────────────────────────────
 async function sendDM(userId, message, accessToken, platform) {
   await axios.post(
-    'https://graph.facebook.com/v18.0/61576483270957/messages',
+    '`https://graph.facebook.com/v18.0/${account.pageId}/messages`,',
     null,
     {
       params: {
