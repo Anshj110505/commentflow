@@ -18,8 +18,9 @@ const app = express();
 // ── Middleware ────────────────────────────────────────────
 app.use(cors({
   origin: [
-    'http://localhost:3000',
-    'https://commentflow-one.vercel.app'
+    'https://commentflow-one.vercel.app',
+    'https://commentflow.shop',
+    'https://www.commentflow.shop'
   ],
   credentials: true
 }));
